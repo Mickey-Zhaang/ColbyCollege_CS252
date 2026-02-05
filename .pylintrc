@@ -1,0 +1,11 @@
+[MASTER]
+# Use multiple processes to speed up linting (set to 0 to disable)
+jobs=2
+
+[MESSAGES CONTROL]
+# Uncomment to disable all messages (turns off pylint for this repo):
+# disable=all
+# Or disable specific codes, e.g. line-too-long:
+disable=line-too-long
+
+

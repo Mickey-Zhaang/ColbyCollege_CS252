@@ -1,17 +1,20 @@
-'''data.py
+"""data.py
 Reads CSV files, stores data, access/filter data by variable name
 YOUR NAME HERE
 CS 251/2: Data Analysis and Visualization
 Spring 2026
-'''
+"""
+
 import numpy as np
 
 
 class Data:
-    '''Represents data read in from .csv files
-    '''
-    def __init__(self, filepath=None, headers=None, data=None, header2col=None, cats2levels=None):
-        '''Data object constructor
+    """Represents data read in from .csv files"""
+
+    def __init__(
+        self, filepath=None, headers=None, data=None, header2col=None, cats2levels=None
+    ):
+        """Data object constructor
 
         Parameters:
         -----------
@@ -50,11 +53,18 @@ class Data:
             - cats2levels
             - Any others you find helpful in your implementation
         - If `filepath` isn't None, call the `read` method.
-        '''
-        pass
+        """
+        self.filepath = filepath
+        self.headers = headers
+        self.data = data
+        self.header2col = header2col
+        self.cats2levels = cats2levels
+
+        if self.filepath:
+            self.read(self.filepath)
 
     def read(self, filepath):
-        '''Read in the .csv file `filepath` in 2D tabular format. Convert to numpy ndarray called `self.data` at the end
+        """Read in the .csv file `filepath` in 2D tabular format. Convert to numpy ndarray called `self.data` at the end
         (think of this as a 2D array or table).
 
         Format of `self.data`:
@@ -107,22 +117,91 @@ class Data:
                 self.cats2levels['letter'] -> ['a', 'b', 'c']
                 self.cats2levels['number'] -> ['1', 'Missing']
                 self.cats2levels['greeting'] -> ['hi']
+        """
+        # open file path
+        self.filepath = filepath
 
-        NOTE:
-        - In any CS251 project, you are welcome to create as many helper methods as you'd like. The crucial thing is to
-        make sure that the provided method signatures work as advertised.
-        - You should only use the basic Python to do your parsing. (i.e. no Numpy or other imports).
-        Points will be taken off otherwise.
-        - Have one of the CSV files provided on the project website open in a text editor as you code and debug.
-        - Run the provided test scripts regularly to see desired outputs and to check your code.
-        - It might be helpful to implement support for only numeric data first, test it, then add support for categorical
-        variable types afterward.
-        - Make use of code from Lab 1a!
-        '''
-        pass
+        # open and extract lines
+        with open(filepath, "r", encoding="UTF-8") as f:
+            lines = f.readlines()
+
+        # extract info
+        headers = [h.strip() for h in lines[0].strip().split(",")]
+        category = [c.strip() for c in lines[1].strip().split(",")]
+        data = [[d.strip() for d in line.strip().split(",")] for line in lines[2:]]
+
+        kept_headers = []
+        kept_categories = []
+        kept_indices = []
+
+        # extract relevant columns by category
+        for i, cat in enumerate(category):
+
+            # skip any features not in the specified
+            if cat not in ["categorical", "numeric"]:
+                continue
+
+            # keep the ith header and category
+            kept_headers.append(headers[i])
+            kept_categories.append(category[i])
+            kept_indices.append(i)
+
+        # set up self.headers and self.header2col
+        self.headers = kept_headers
+        self.header2col = {header: i for i, header in enumerate(self.headers)}
+
+        # set up cats2levels
+        cats2levels = {header: [] for header in kept_headers}
+
+        for datum in data:
+
+            for i, d in enumerate(datum):
+
+                # skip unwanted indices
+                if i not in kept_indices:
+                    continue
+
+                # filter through all headers
+                cur_header = headers[i]
+                cur_cat = category[i]
+
+                d = "Missing" if not d else d
+
+                # store only unique data values with category type "categorical"
+                if d not in cats2levels[cur_header] and cur_cat == "categorical":
+                    cats2levels[cur_header].append(d)
+
+        self.cats2levels = cats2levels
+
+        # set up kept data
+        kept_data = []
+
+        for datum in data:
+            cur_kept_data = []
+
+            for i, d in enumerate(datum):
+                cur_cat = category[i]
+                cur_header = headers[i]
+
+                # skip unwanted indices
+                if i not in kept_indices:
+                    continue
+
+                if cur_cat == "numeric":
+                    if not d:
+                        cur_kept_data.append(np.nan)
+                    else:
+                        cur_kept_data.append(float(d))
+                elif cur_cat == "categorical":
+                    idx_mapping = cats2levels[cur_header].index(d if d else "Missing")
+                    cur_kept_data.append(idx_mapping)
+
+            kept_data.append(cur_kept_data)
+
+        self.data = np.array(kept_data)
 
     def __str__(self):
-        '''toString method
+        """toString method
 
         (For those who don't know, __str__ works like toString in Java...In this case, it's what's called to determine
         what gets shown when a `Data` object is printed.)
@@ -135,65 +214,65 @@ class Data:
 
         NOTE: It is fine to print out int-coded categorical variables (no extra work compared to printing out numeric data).
         Printing out the categorical variables with string levels would be a small extension.
-        '''
+        """
         pass
 
     def get_headers(self):
-        '''Get list of header names (all variables)
+        """Get list of header names (all variables)
 
         Returns:
         -----------
         Python list of str.
-        '''
-        pass
+        """
+        return self.headers
 
     def get_mappings(self):
-        '''Get method for mapping between variable name and column index
+        """Get method for mapping between variable name and column index
 
         Returns:
         -----------
         Python dictionary. str -> int
-        '''
-        pass
+        """
+        return self.header2col
 
     def get_cat_level_mappings(self):
-        '''Get method for mapping between categorical variable names and a list of the respective unique level strings.
+        """Get method for mapping between categorical variable names and a list of the respective unique level strings.
 
         Returns:
         -----------
         Python dictionary. str -> list of str
-        '''
-        pass
+        """
+        return self.cats2levels
 
     def get_num_dims(self):
-        '''Get method for number of dimensions in each data sample
+        """Get method for number of dimensions in each data sample
 
         Returns:
         -----------
         int. Number of dimensions in each data sample. Same thing as number of variables.
-        '''
-        pass
+        """
+        return len(self.cats2levels)
 
     def get_num_samples(self):
-        '''Get method for number of data points (samples) in the dataset
+        """Get method for number of data points (samples) in the dataset
 
         Returns:
         -----------
         int. Number of data samples in dataset.
-        '''
-        pass
+        """
+        return len(self.data)
 
     def get_sample(self, rowInd):
-        '''Gets the data sample at index `rowInd` (the `rowInd`-th sample)
+        """Gets the data sample at index `rowInd` (the `rowInd`-th sample)
 
         Returns:
         -----------
         ndarray. shape=(num_vars,) The data sample at index `rowInd`
-        '''
-        pass
+        """
+        return self.data[rowInd]
 
     def get_header_indices(self, headers):
-        '''Gets the variable (column) indices of the str variable names in `headers`.
+        """Gets the variable (column) indices of the str variable names in `headers`.
 
         Parameters:
         -----------
@@ -202,11 +281,11 @@ class Data:
         Returns:
         -----------
         Python list of nonnegative ints. shape=len(headers). The indices of the headers in `headers` list.
-        '''
-        pass
+        """
+        return [self.header2col[h] for h in headers]
 
     def get_all_data(self):
-        '''Gets a copy of the entire dataset
+        """Gets a copy of the entire dataset
 
         (Week 2)
 
@@ -215,44 +294,43 @@ class Data:
         ndarray. shape=(num_data_samps, num_vars). A copy of the entire dataset.
             NOTE: This should be a COPY, not the data stored here itself. This can be accomplished with numpy's copy
             function.
-        '''
+        """
         pass
 
     def head(self):
-        '''Return the 1st five data samples (all variables)
+        """Return the 1st five data samples (all variables)
 
         (Week 2)
 
         Returns:
         -----------
         ndarray. shape=(5, num_vars). 1st five data samples.
-        '''
+        """
         pass
 
     def tail(self):
-        '''Return the last five data samples (all variables)
+        """Return the last five data samples (all variables)
 
         (Week 2)
 
         Returns:
         -----------
         ndarray. shape=(5, num_vars). Last five data samples.
-        '''
+        """
         pass
 
     def limit_samples(self, start_row, end_row):
-        '''Update the data so that this `Data` object only stores samples in the contiguous range:
+        """Update the data so that this `Data` object only stores samples in the contiguous range:
             `start_row` (inclusive), end_row (exclusive)
         Samples outside the specified range are no longer stored.
 
         (Week 2)
 
-        '''
+        """
         pass
 
-
     def shuffle(self, inds):
-        '''Uses the sample indices `inds` to shuffle the order of samples in the dataset. The indices `inds` specify
+        """Uses the sample indices `inds` to shuffle the order of samples in the dataset. The indices `inds` specify
         the order of each sample in the NEW SHUFFLED dataset.
 
         Example: dataset: [11, 17, 13], inds: [2, 0, 1], shuffled dataset: [17, 13, 11]
@@ -262,11 +340,11 @@ class Data:
         inds: Python list of ints or ndarray. shape=(num_samps,).
 
         (Week 2)
-        '''
+        """
         pass
 
     def select_data(self, headers, rows=[]):
-        '''Return data samples corresponding to the variable names in `headers`.
+        """Return data samples corresponding to the variable names in `headers`.
         If `rows` is empty, return all samples, otherwise return samples at the indices specified by the `rows` list.
 
         (Week 2)
@@ -287,5 +365,5 @@ class Data:
             Subset of data from the variables `headers` that have row indices `rows`.
 
         Hint: For selecting a subset of rows from the data ndarray, check out np.ix_
-        '''
+        """
         pass
