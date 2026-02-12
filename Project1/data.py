@@ -295,7 +295,7 @@ class Data:
             NOTE: This should be a COPY, not the data stored here itself. This can be accomplished with numpy's copy
             function.
         """
-        pass
+        return np.copy(self.data)
 
     def head(self):
         """Return the 1st five data samples (all variables)
@@ -306,7 +306,7 @@ class Data:
         -----------
         ndarray. shape=(5, num_vars). 1st five data samples.
         """
-        pass
+        return self.data[:5]
 
     def tail(self):
         """Return the last five data samples (all variables)
@@ -317,7 +317,7 @@ class Data:
         -----------
         ndarray. shape=(5, num_vars). Last five data samples.
         """
-        pass
+        return self.data[-5:]
 
     def limit_samples(self, start_row, end_row):
         """Update the data so that this `Data` object only stores samples in the contiguous range:
@@ -327,7 +327,7 @@ class Data:
         (Week 2)
 
         """
-        pass
+        self.data = self.data[start_row:end_row]
 
     def shuffle(self, inds):
         """Uses the sample indices `inds` to shuffle the order of samples in the dataset. The indices `inds` specify
@@ -341,7 +341,7 @@ class Data:
 
         (Week 2)
         """
-        pass
+        self.data = self.data[inds]
 
     def select_data(self, headers, rows=[]):
         """Return data samples corresponding to the variable names in `headers`.
@@ -366,4 +366,11 @@ class Data:
 
         Hint: For selecting a subset of rows from the data ndarray, check out np.ix_
         """
-        pass
+        headers = list(headers)
+        # if rows empty
+        col_inds = self.get_header_indices(headers)
+        if len(rows) == 0:
+            return self.data[:, col_inds]
+
+        # if rows is not empty, ix the rows with col_inds
+        return self.data[np.ix_(rows, col_inds)]
