@@ -195,7 +195,13 @@ class Analysis:
 
         NOTE: Do not call plt.show() here.
         """
-        pass
+        x = self.data.select_data([ind_var]).flatten()
+        y = self.data.select_data([dep_var]).flatten()
+        plt.scatter(x, y)
+        plt.title(title)
+        plt.xlabel(ind_var)
+        plt.ylabel(dep_var)
+        return x, y
 
     def pair_plot(self, data_vars, fig_sz=(12, 12), title=""):
         """Create a pair plot: grid of scatter plots showing all combinations of variables in `data_vars` in the
@@ -230,4 +236,32 @@ class Analysis:
 
         NOTE: For loops are allowed here!
         """
-        pass
+
+        fig, ax = plt.subplots(
+            len(data_vars), len(data_vars), figsize=fig_sz, sharex="col", sharey="row"
+        )
+        if ax.ndim == 1:
+            ax = ax.reshape(1, -1)
+        if ax.ndim == 0:
+            ax = np.array([[ax]])
+
+        if np.isscalar(ax):
+            ax = np.array([[ax]])
+        elif ax.ndim == 1:
+            ax = ax.reshape(1, -1) if ax.size == len(data_vars) else ax.reshape(-1, 1)
+
+        data = self.data.select_data(data_vars)
+        for i in range(len(data_vars)):
+            for j in range(len(data_vars)):
+                ax[i, j].scatter(data[:, j], data[:, i])
+                if j == 0:
+                    ax[i, j].set_ylabel(data_vars[i])
+                if i == len(data_vars) - 1:
+                    ax[i, j].set_xlabel(data_vars[j])
+                if j != 0:
+                    ax[i, j].set_yticklabels([])
+                if i != len(data_vars) - 1:
+                    ax[i, j].set_xticklabels([])
+        if title:
+            fig.suptitle(title)
+        return fig, ax
