@@ -1,9 +1,10 @@
-'''linear_regression.py
+"""linear_regression.py
 Subclass of Analysis that performs linear regression on data
 YOUR NAME HERE
 CS 252: Mathematical Data Analysis Visualization
 Spring 2026
-'''
+"""
+
 import numpy as np
 import scipy.linalg
 import matplotlib.pyplot as plt
@@ -12,15 +13,15 @@ import analysis
 
 
 class LinearRegression(analysis.Analysis):
-    '''Perform and store linear regression and related analyses'''
+    """Perform and store linear regression and related analyses"""
 
     def __init__(self, data):
-        '''LinearRegression class constructor
+        """LinearRegression class constructor
 
         Parameters:
         -----------
         data: Data object. Contains all data samples and variables in a dataset.
-        '''
+        """
         super().__init__(data)
 
         # ind_vars: Python list of strings.
@@ -55,8 +56,8 @@ class LinearRegression(analysis.Analysis):
         # p: int. Polynomial degree of regression model (Week 2)
         self.p = 1
 
-    def linear_regression(self, ind_vars, dep_var, method='scipy', p=1):
-        '''Performs a linear regression on the independent (predictor) variable(s) `ind_vars`
+    def linear_regression(self, ind_vars, dep_var, method="scipy", p=1):
+        """Performs a linear regression on the independent (predictor) variable(s) `ind_vars`
         and dependent variable `dep_var` using the method `method`.
 
         Parameters:
@@ -78,11 +79,37 @@ class LinearRegression(analysis.Analysis):
         - By the end of this method, all instance variables should be set (see constructor).
 
         NOTE: Use other methods in this class where ever possible (do not write the same code twice!)
-        '''
-        pass
+        """
+        self.ind_vars = ind_vars
+        self.dep_var = dep_var
+
+        self.A = self.data.select_data(ind_vars)
+        self.y = self.data.select_data([dep_var])
+        if self.y.ndim == 1:
+            self.y = self.y.reshape(-1, 1)
+
+        solvers = {
+            "scipy": self.linear_regression_scipy,
+            "normal": self.linear_regression_normal,
+            "qr": self.linear_regression_qr,
+        }
+        if method not in solvers:
+            raise ValueError(f"Unknown method {method!r}. Use one of {list(solvers)}")
+        c = solvers[method](self.A, self.y)
+
+        # intercept and slope
+        self.intercept = float(c[0, 0])
+        self.slope = c[1:, :]
+
+        # predictions and statistics
+        y_pred = self.predict()
+
+        self.R2 = self.r_squared(y_pred=y_pred)
+        self.residuals = self.compute_residuals(y_pred=y_pred)
+        self.mse = self.compute_mse()
 
     def linear_regression_scipy(self, A, y):
-        '''Performs a linear regression using scipy's built-in least squares solver (scipy.linalg.lstsq).
+        """Performs a linear regression using scipy's built-in least squares solver (scipy.linalg.lstsq).
         Solves the equation y = Ac for the coefficient vector c.
 
         Parameters:
@@ -96,11 +123,15 @@ class LinearRegression(analysis.Analysis):
         -----------
         c: ndarray. shape=(num_ind_vars+1, 1)
             Linear regression slope coefficients for each independent var PLUS the intercept term
-        '''
-        pass
+        """
+
+        ones_col = np.ones((A.shape[0], 1))
+        A_stack = np.hstack([ones_col, A])
+        c, _, _, _ = scipy.linalg.lstsq(A_stack, y)
+        return c
 
     def linear_regression_normal(self, A, y):
-        '''Performs a linear regression using the normal equations.
+        """Performs a linear regression using the normal equations.
         Solves the equation y = Ac for the coefficient vector c.
 
         See notebook for a refresher on the equation
@@ -116,11 +147,16 @@ class LinearRegression(analysis.Analysis):
         -----------
         c: ndarray. shape=(num_ind_vars+1, 1)
             Linear regression slope coefficients for each independent var AND the intercept term
-        '''
-        pass
+        """
+        ones_col = np.ones((A.shape[0], 1))
+        A_stack = np.hstack([ones_col, A])
+
+        c = np.linalg.solve(A_stack.T @ A_stack, A_stack.T @ y)
+
+        return c
 
     def linear_regression_qr(self, A, y):
-        '''Performs a linear regression using the QR decomposition
+        """Performs a linear regression using the QR decomposition
 
         (Week 2)
 
@@ -140,11 +176,11 @@ class LinearRegression(analysis.Analysis):
 
         NOTE: You should not compute any matrix inverses! Check out scipy.linalg.solve_triangular
         to backsubsitute to solve for the regression coefficients `c`.
-        '''
+        """
         pass
 
     def qr_decomposition(self, A):
-        '''Performs a QR decomposition on the matrix A. Make column vectors orthogonal relative
+        """Performs a QR decomposition on the matrix A. Make column vectors orthogonal relative
         to each other. Uses the Gram–Schmidt algorithm
 
         (Week 2)
@@ -172,11 +208,11 @@ class LinearRegression(analysis.Analysis):
             - NOTE: When doing this, add a very small constant "fudge factor" of 1x10^-20 (i.e. 1e-20)
             to the denominator to prevent potential divisions by zero.
         3. R is found by equation summarized in notebook
-        '''
+        """
         pass
 
     def predict(self, X=None):
-        '''Use fitted linear regression model to predict the values of data matrix self.A.
+        """Use fitted linear regression model to predict the values of data matrix self.A.
         Generates the predictions y_pred = mA + b, where (m, b) are the model fit slope and intercept,
         A is the data matrix.
 
@@ -192,11 +228,15 @@ class LinearRegression(analysis.Analysis):
             Predicted y (dependent variable) values
 
         NOTE: You can write this method without any loops!
-        '''
-        pass
+        """
+        design_matrix = X if X is not None else self.A
+
+        y_pred = design_matrix @ self.slope + self.intercept
+
+        return y_pred
 
     def r_squared(self, y_pred):
-        '''Computes the R^2 quality of fit statistic
+        """Computes the R^2 quality of fit statistic
 
         Parameters:
         -----------
@@ -207,11 +247,16 @@ class LinearRegression(analysis.Analysis):
         -----------
         R2: float.
             The R^2 statistic
-        '''
-        pass
+        """
+        E = np.sum((self.y - y_pred) ** 2)
+        S = np.sum((self.y - np.mean(self.y)) ** 2)
+
+        R2 = float(1 - (E / S))
+
+        return R2
 
     def compute_residuals(self, y_pred):
-        '''Determines the residual values from the linear regression model
+        """Determines the residual values from the linear regression model
 
         Parameters:
         -----------
@@ -223,11 +268,14 @@ class LinearRegression(analysis.Analysis):
         residuals: ndarray. shape=(num_data_samps, 1)
             Difference between the y values and the ones predicted by the regression model at the
             data samples
-        '''
-        pass
+        """
+
+        residuals = self.y - y_pred
+
+        return residuals
 
     def compute_mse(self):
-        '''Computes the mean squared error in the predicted y compared the actual y values.
+        """Computes the mean squared error in the predicted y compared the actual y values.
         See notebook for equation.
 
         Returns:
@@ -235,11 +283,12 @@ class LinearRegression(analysis.Analysis):
         float. Mean squared error
 
         Hint: Make use of self.compute_residuals
-        '''
-        pass
+        """
+
+        return float(np.sum(self.residuals**2) / self.A.shape[0])
 
     def scatter(self, ind_var, dep_var, title):
-        '''Creates a scatter plot with a regression line to visualize the model fit.
+        """Creates a scatter plot with a regression line to visualize the model fit.
         Assumes linear regression has been already run.
 
         Parameters:
@@ -256,11 +305,21 @@ class LinearRegression(analysis.Analysis):
         regression line.
         - Plot the line on top of the scatterplot.
         - Make sure that your plot has a title (with R^2 value in it)
-        '''
-        pass
+        """
+        x, y = super().scatter(ind_var=ind_var, dep_var=dep_var, title=title)
+
+        line_x = np.linspace(x.min(), x.max(), 200)
+
+        j = self.ind_vars.index(ind_var)
+        slope_j = self.slope[j, 0]
+
+        line_y = self.intercept + slope_j * line_x
+
+        plt.plot(line_x, line_y, c="r", label="Regression")
+        plt.title(f"R2: {self.R2:.3f}")
 
     def pair_plot(self, data_vars, fig_sz=(12, 12), hists_on_diag=True):
-        '''Makes a pair plot with regression lines in each panel.
+        """Makes a pair plot with regression lines in each panel.
         There should be a len(data_vars) x len(data_vars) grid of plots, show all variable pairs
         on x and y axes.
 
@@ -280,11 +339,37 @@ class LinearRegression(analysis.Analysis):
         that you used for self.scatter. Note that here you will need to fit a new regression for
         every ind and dep variable pair.
         - Make sure that each plot has a title (with R^2 value in it)
-        '''
-        pass
+        """
+        fig, ax = super().pair_plot(data_vars=data_vars, fig_sz=fig_sz, title="")
+
+        data = self.data.select_data(data_vars)
+        n = len(data_vars)
+        for i in range(n):
+            for j in range(n):
+                if hists_on_diag and i == j:
+                    num_vars = len(data_vars)
+                    ax[i, j].remove()
+                    ax[i, j] = fig.add_subplot(num_vars, num_vars, i * num_vars + j + 1)
+                    if i < num_vars - 1:
+                        ax[i, j].set_xticks([])
+                    else:
+                        ax[i, j].set_xlabel(data_vars[j])
+                    if j > 0:
+                        ax[i, j].set_yticks([])
+                    else:
+                        ax[i, j].set_ylabel(data_vars[i])
+                    ax[i, j].hist(data[:, i])
+                    ax[i, j].set_title(data_vars[i])
+                else:
+                    self.linear_regression([data_vars[j]], data_vars[i])
+                    x_line = np.linspace(data[:, j].min(), data[:, j].max(), 200)
+                    y_line = self.intercept + self.slope[0, 0] * x_line
+                    ax[i, j].plot(x_line, y_line, c="r")
+                    ax[i, j].set_title(f"R2: {self.R2:.3f}")
+        return fig, ax
 
     def make_polynomial_matrix(self, A, p):
-        '''Takes an independent variable data column vector `A and transforms it into a matrix appropriate
+        """Takes an independent variable data column vector `A and transforms it into a matrix appropriate
         for a polynomial regression model of degree `p`.
 
         (Week 2)
@@ -304,11 +389,11 @@ class LinearRegression(analysis.Analysis):
 
         NOTE: There should not be a intercept term ("x^0"), the linear regression solver method
         will take care of that.
-        '''
+        """
         pass
 
-    def poly_regression(self, ind_var, dep_var, p, method='normal'):
-        '''Perform polynomial regression — generalizes self.linear_regression to polynomial curves
+    def poly_regression(self, ind_var, dep_var, p, method="normal"):
+        """Perform polynomial regression — generalizes self.linear_regression to polynomial curves
         (Week 2)
         NOTE: For single linear regression only (one independent variable only)
 
@@ -330,31 +415,31 @@ class LinearRegression(analysis.Analysis):
             - You create a matrix based on the independent variable data matrix (self.A) with columns
             appropriate for polynomial regresssion. Do this with self.make_polynomial_matrix.
             - You set the instance variable for the polynomial regression degree (self.p)
-        '''
+        """
         pass
 
     def get_fitted_slope(self):
-        '''Returns the fitted regression slope.
+        """Returns the fitted regression slope.
         (Week 2)
 
         Returns:
         -----------
         ndarray. shape=(num_ind_vars, 1). The fitted regression slope(s).
-        '''
+        """
         pass
 
     def get_fitted_intercept(self):
-        '''Returns the fitted regression intercept.
+        """Returns the fitted regression intercept.
         (Week 2)
 
         Returns:
         -----------
         float. The fitted regression intercept(s).
-        '''
+        """
         pass
 
     def initialize(self, ind_vars, dep_var, slope, intercept, p):
-        '''Sets fields based on parameter values.
+        """Sets fields based on parameter values.
         (Week 2)
 
         Parameters:
@@ -371,5 +456,5 @@ class LinearRegression(analysis.Analysis):
 
         TODO:
         - Use parameters and call methods to set all instance variables defined in constructor.
-        '''
+        """
         pass
