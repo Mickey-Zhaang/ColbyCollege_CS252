@@ -177,7 +177,11 @@ class LinearRegression(analysis.Analysis):
         NOTE: You should not compute any matrix inverses! Check out scipy.linalg.solve_triangular
         to backsubsitute to solve for the regression coefficients `c`.
         """
-        pass
+        ones_col = np.ones((A.shape[0], 1))
+        A_stack = np.hstack([ones_col, A])
+        Q, R = self.qr_decomposition(A_stack)
+        c = scipy.linalg.solve_triangular(R, Q.T @ y, lower=False)
+        return c
 
     def qr_decomposition(self, A):
         """Performs a QR decomposition on the matrix A. Make column vectors orthogonal relative
@@ -209,7 +213,18 @@ class LinearRegression(analysis.Analysis):
             to the denominator to prevent potential divisions by zero.
         3. R is found by equation summarized in notebook
         """
-        pass
+        Q = np.zeros_like(A)
+        n_cols = A.shape[1]
+
+        for j in range(n_cols):
+            v = A[:, j].copy().reshape(-1, 1)
+            for i in range(j):
+                v = v - (Q[:, i : i + 1].T @ v) * Q[:, i : i + 1]
+            norm = np.sqrt((v.T @ v)[0, 0]) + 1e-20
+            Q[:, j] = (v / norm).flatten()
+
+        R = Q.T @ A
+        return Q, R
 
     def predict(self, X=None):
         """Use fitted linear regression model to predict the values of data matrix self.A.
@@ -229,7 +244,10 @@ class LinearRegression(analysis.Analysis):
 
         NOTE: You can write this method without any loops!
         """
+
         design_matrix = X if X is not None else self.A
+        if X is not None and self.p > 1:
+            design_matrix = self.make_polynomial_matrix(design_matrix, self.p)
 
         y_pred = design_matrix @ self.slope + self.intercept
 
@@ -287,7 +305,7 @@ class LinearRegression(analysis.Analysis):
 
         return float(np.sum(self.residuals**2) / self.A.shape[0])
 
-    def scatter(self, ind_var, dep_var, title):
+    def scatter(self, ind_var, dep_var, title="", c="r"):
         """Creates a scatter plot with a regression line to visualize the model fit.
         Assumes linear regression has been already run.
 
@@ -310,13 +328,17 @@ class LinearRegression(analysis.Analysis):
 
         line_x = np.linspace(x.min(), x.max(), 200)
 
-        j = self.ind_vars.index(ind_var)
-        slope_j = self.slope[j, 0]
+        if self.p > 1:
+            # Evaluate full polynomial so the curve shows wiggles for high degree
+            line_x_col = line_x.reshape(-1, 1)
+            line_y = self.predict(X=line_x_col).flatten()
+        else:
+            j = self.ind_vars.index(ind_var)
+            slope_j = self.slope[j, 0]
+            line_y = self.intercept + slope_j * line_x
 
-        line_y = self.intercept + slope_j * line_x
-
-        plt.plot(line_x, line_y, c="r", label="Regression")
-        plt.title(f"R2: {self.R2:.3f}")
+        plt.plot(line_x, line_y, c=c, label="Regression")
+        plt.title(f"R2: {self.R2:.3f}" if self.R2 is not None else title)
 
     def pair_plot(self, data_vars, fig_sz=(12, 12), hists_on_diag=True):
         """Makes a pair plot with regression lines in each panel.
@@ -390,7 +412,10 @@ class LinearRegression(analysis.Analysis):
         NOTE: There should not be a intercept term ("x^0"), the linear regression solver method
         will take care of that.
         """
-        pass
+        A_reshaped = A.reshape(-1, 1)
+        A_stack = [A_reshaped**i for i in range(1, p + 1)]
+
+        return np.hstack(A_stack)
 
     def poly_regression(self, ind_var, dep_var, p, method="normal"):
         """Perform polynomial regression — generalizes self.linear_regression to polynomial curves
@@ -416,7 +441,36 @@ class LinearRegression(analysis.Analysis):
             appropriate for polynomial regresssion. Do this with self.make_polynomial_matrix.
             - You set the instance variable for the polynomial regression degree (self.p)
         """
-        pass
+        self.p = p
+        self.ind_vars = [ind_var]
+        self.dep_var = dep_var
+
+        # make the poly matrix
+        raw_x = self.data.select_data([ind_var])
+        self.A = self.make_polynomial_matrix(raw_x, self.p)
+        self.y = self.data.select_data([dep_var])
+        if self.y.ndim == 1:
+            self.y = self.y.reshape(-1, 1)
+
+        solvers = {
+            "scipy": self.linear_regression_scipy,
+            "normal": self.linear_regression_normal,
+            "qr": self.linear_regression_qr,
+        }
+        if method not in solvers:
+            raise ValueError(f"Unknown method {method!r}. Use one of {list(solvers)}")
+        c = solvers[method](self.A, self.y)
+
+        # intercept and slope
+        self.intercept = float(c[0, 0])
+        self.slope = c[1:, :]
+
+        # predictions and statistics
+        y_pred = self.predict()
+
+        self.R2 = self.r_squared(y_pred=y_pred)
+        self.residuals = self.compute_residuals(y_pred=y_pred)
+        self.mse = self.compute_mse()
 
     def get_fitted_slope(self):
         """Returns the fitted regression slope.
@@ -426,7 +480,7 @@ class LinearRegression(analysis.Analysis):
         -----------
         ndarray. shape=(num_ind_vars, 1). The fitted regression slope(s).
         """
-        pass
+        return self.slope
 
     def get_fitted_intercept(self):
         """Returns the fitted regression intercept.
@@ -436,7 +490,7 @@ class LinearRegression(analysis.Analysis):
         -----------
         float. The fitted regression intercept(s).
         """
-        pass
+        return self.intercept
 
     def initialize(self, ind_vars, dep_var, slope, intercept, p):
         """Sets fields based on parameter values.
@@ -457,4 +511,8 @@ class LinearRegression(analysis.Analysis):
         TODO:
         - Use parameters and call methods to set all instance variables defined in constructor.
         """
-        pass
+        self.ind_vars = ind_vars
+        self.dep_var = dep_var
+        self.slope = slope
+        self.intercept = intercept
+        self.p = p
