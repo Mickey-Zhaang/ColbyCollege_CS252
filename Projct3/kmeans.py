@@ -388,7 +388,7 @@ class KMeans:
         -----------
         None
         """
-        pass
+        self.data = self.centroids[self.data_centroid_labels]
 
     def segment_cluster(self, k):
         """Segments cluster `k` from a COPY of the data. This means setting the entries in all samples NOT assigned to
@@ -407,4 +407,7 @@ class KMeans:
 
         Note: Logical indexing can be helpful here.
         """
-        pass
+        data_copy = self.get_data()
+        mask = self.data_centroid_labels != k
+        data_copy[mask] = 0
+        return data_copy
