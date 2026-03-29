@@ -1,9 +1,10 @@
-'''pca_cov.py
+"""pca_cov.py
 Performs principal component analysis using the covariance matrix of the dataset
 YOUR NAME HERE
 CS 251 / 252: Data Analysis and Visualization
 Spring 2026
-'''
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -12,21 +13,21 @@ from data_transformations import normalize, center
 
 
 class PCA:
-    '''Perform and store principal component analysis results
+    """Perform and store principal component analysis results
 
     NOTE: In your implementations, only the following "high level" `scipy`/`numpy` functions can be used:
     - `np.linalg.eig`
     The numpy functions that you have been using so far are fine to use.
-    '''
+    """
 
     def __init__(self, data):
-        '''
+        """
 
         Parameters:
         -----------
         data: pandas DataFrame. shape=(num_samps, num_vars)
             Contains all the data samples and variables in a dataset. Should be set as an instance variable.
-        '''
+        """
         self.data = data
 
         # vars: Python list. len(vars) = num_selected_vars
@@ -74,23 +75,23 @@ class PCA:
         self.orig_maxs = None
 
     def get_prop_var(self):
-        '''(No changes should be needed)'''
+        """(No changes should be needed)"""
         return self.prop_var
 
     def get_cum_var(self):
-        '''(No changes should be needed)'''
+        """(No changes should be needed)"""
         return self.cum_var
 
     def get_eigenvalues(self):
-        '''(No changes should be needed)'''
+        """(No changes should be needed)"""
         return self.e_vals
 
     def get_eigenvectors(self):
-        '''(No changes should be needed)'''
+        """(No changes should be needed)"""
         return self.e_vecs
 
     def covariance_matrix(self, data):
-        '''Computes the covariance matrix of `data`
+        """Computes the covariance matrix of `data`
 
         Parameters:
         -----------
@@ -104,11 +105,14 @@ class PCA:
 
         NOTE: You should do this wihout any loops
         NOTE: np.cov is off-limits here — compute it from "scratch"!
-        '''
-        pass
+        """
+        data_centered = center(data)
+        N = data.shape[0]
+
+        return (data_centered.T @ data_centered) / (N - 1)
 
     def compute_prop_var(self, e_vals):
-        '''Computes the proportion variance accounted for by the principal components (PCs).
+        """Computes the proportion variance accounted for by the principal components (PCs).
 
         Parameters:
         -----------
@@ -118,11 +122,12 @@ class PCA:
         -----------
         Python list. len = num_pcs
             Proportion variance accounted for by the PCs
-        '''
-        pass
+        """
+        e_vals_sum = np.sum(e_vals)
+        return [e / e_vals_sum for e in e_vals]
 
     def compute_cum_var(self, prop_var):
-        '''Computes the cumulative variance accounted for by the principal components (PCs).
+        """Computes the cumulative variance accounted for by the principal components (PCs).
 
         Parameters:
         -----------
@@ -134,15 +139,15 @@ class PCA:
         -----------
         Python list. len = num_pcs
             Cumulative variance accounted for by the PCs
-        '''
-        pass
+        """
+        return list(np.cumsum(prop_var))
 
     def fit(self, vars, normalize_dataset=False):
-        '''Fits PCA to the data variables `vars` by computing the full set of PCs. The goal is to compute 
+        """Fits PCA to the data variables `vars` by computing the full set of PCs. The goal is to compute
         - eigenvectors and eigenvalues
         - proportion variance accounted for by each PC.
         - cumulative variance accounted for by first k PCs.
-        
+
         Does NOT actually transform data by PCA.
 
         Parameters:
@@ -162,11 +167,35 @@ class PCA:
         - Make sure to compute everything needed to set all instance variables defined in constructor,
         except for self.A_proj (this will happen later).
         - Remember, this method does NOT actually transform the dataset by PCA.
-        '''
-        pass
+        """
+        self.vars = list(vars)
+        self.A = self.data[vars].to_numpy()
+
+        self.orig_means = self.A.mean(axis=0)
+        self.orig_mins = self.A.min(axis=0)
+        self.orig_maxs = self.A.max(axis=0)
+
+        if normalize_dataset:
+            self.A = normalize(self.A)
+        self.normalized = normalize_dataset
+
+        # compute covariance
+        cov = self.covariance_matrix(self.A)
+
+        # eigenvals
+        e_vals, e_vecs = np.linalg.eig(cov)
+
+        # housekeeping
+        order = np.argsort(e_vals)[::-1]
+        self.e_vals = e_vals[order]
+        self.e_vecs = e_vecs[:, order]
+
+        # compute prop and cum variance
+        self.prop_var = self.compute_prop_var(self.e_vals)
+        self.cum_var = self.compute_cum_var(self.prop_var)
 
     def elbow_plot(self, num_pcs_to_keep=None):
-        '''Plots a curve of the cumulative variance accounted for by the top `num_pcs_to_keep` PCs.
+        """Plots a curve of the cumulative variance accounted for by the top `num_pcs_to_keep` PCs.
         x axis corresponds to top PCs included (large-to-small order)
         y axis corresponds to the cumulative proportion variance accounted for
 
@@ -178,13 +207,23 @@ class PCA:
         NOTE: Make plot markers at each point. Enlarge them so that they look obvious.
         NOTE: Reminder to create useful x and y axis labels.
         NOTE: Don't write plt.show() in this method
-        '''
+        """
         if self.cum_var is None:
-            raise ValueError('Cant plot cumulative variance. Compute the PCA first.')
-        pass
+            raise ValueError("Cant plot cumulative variance. Compute the PCA first.")
+
+        cum_var = (
+            self.cum_var if num_pcs_to_keep is None else self.cum_var[:num_pcs_to_keep]
+        )
+        x = np.arange(0, len(cum_var) + 1)
+
+        plt.plot(x, [0] + cum_var, marker="o", markersize=10)
+        plt.xlabel("Number of PCs")
+        plt.ylabel("Cumulative proportion variance")
+        plt.ylim(0, 1.05)
+        plt.xlim(0)
 
     def pca_project(self, pcs_to_keep):
-        '''Project the data onto `pcs_to_keep` PCs (not necessarily contiguous)
+        """Project the data onto `pcs_to_keep` PCs (not necessarily contiguous)
 
         Parameters:
         -----------
@@ -202,11 +241,15 @@ class PCA:
             then pca_proj[:, 0] are x values, pca_proj[:, 1] are y values.
 
         NOTE: This method should set the variable `self.A_proj`
-        '''
-        pass
+        """
+        A_centered = center(self.A)
+        e_vector_to_keep = self.get_eigenvectors()[:, pcs_to_keep]
+        self.A_proj = A_centered @ e_vector_to_keep
+
+        return self.A_proj
 
     def pca_then_project_back(self, top_k):
-        '''Project the data into PCA space (on `top_k` PCs) then project it back to the data space
+        """Project the data into PCA space (on `top_k` PCs) then project it back to the data space
 
         (Week 2)
 
@@ -219,11 +262,11 @@ class PCA:
         ndarray. shape=(num_samps, num_selected_vars). Data projected onto top K PCs then projected back to data space.
 
         NOTE: If you normalized, remember to rescale the data projected back to the original data space.
-        '''
+        """
         pass
 
     def loading_plot(self):
-        '''Create a loading plot of the top 2 PC eigenvectors
+        """Create a loading plot of the top 2 PC eigenvectors
 
         (Week 2)
 
@@ -234,5 +277,5 @@ class PCA:
             Number of lines = num_vars
         - Use plt.annotate to label each line by the variable that it corresponds to.
         - Reminder to create useful x and y axis labels.
-        '''
+        """
         pass
