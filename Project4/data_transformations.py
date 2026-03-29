@@ -1,16 +1,17 @@
-'''data_transformations.py
+"""data_transformations.py
 YOUR NAME HERE
 Performs translation, scaling, and rotation transformations on data
 CS 251 / 252: Data Analysis and Visualization
 Spring 2026
 
 NOTE: All functions should be implemented from scratch using basic NumPy WITHOUT loops and high-level library calls.
-'''
+"""
+
 import numpy as np
 
 
 def normalize(data):
-    '''Perform min-max normalization of each variable in a dataset.
+    """Perform min-max normalization of each variable in a dataset.
 
     Parameters:
     -----------
@@ -19,12 +20,14 @@ def normalize(data):
     Returns:
     -----------
     ndarray. shape=(N, M). The min-max normalized dataset.
-    '''
-    pass
+    """
+    mins = data.min(axis=0)
+    maxs = data.max(axis=0)
+    return (data - mins) / (maxs - mins)
 
 
 def center(data):
-    '''Center the dataset.
+    """Center the dataset.
 
     Parameters:
     -----------
@@ -33,12 +36,13 @@ def center(data):
     Returns:
     -----------
     ndarray. shape=(N, M). The centered dataset.
-    '''
-    pass
+    """
+    means = data.mean(axis=0)
+    return data - means
 
 
-def rotation_matrix_3d(degrees, axis='x'):
-    '''Make a 3D rotation matrix for rotating the dataset about ONE variable ("axis").
+def rotation_matrix_3d(degrees, axis="x"):
+    """Make a 3D rotation matrix for rotating the dataset about ONE variable ("axis").
 
     Parameters:
     -----------
@@ -50,5 +54,14 @@ def rotation_matrix_3d(degrees, axis='x'):
     ndarray. shape=(3, 3). The 3D rotation matrix.
 
     NOTE: This method just CREATES and RETURNS the rotation matrix. It does NOT actually PERFORM the rotation!
-    '''
-    pass
+    """
+
+    rad = np.radians(degrees)
+    c, s = np.cos(rad), np.sin(rad)
+
+    if axis == "x":
+        return np.array([[1, 0, 0], [0, c, -s], [0, s, c]])
+    elif axis == "y":
+        return np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]])
+    elif axis == "z":
+        return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
