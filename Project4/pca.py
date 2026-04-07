@@ -263,7 +263,14 @@ class PCA:
 
         NOTE: If you normalized, remember to rescale the data projected back to the original data space.
         """
-        pass
+        A_proj = self.pca_project(list(range(top_k)))
+        E = self.e_vecs[:, :top_k]
+        A_back = A_proj @ E.T
+
+        if self.normalized:
+            A_back = A_back * (self.orig_maxs - self.orig_mins) + self.orig_mins
+
+        return A_back
 
     def loading_plot(self):
         """Create a loading plot of the top 2 PC eigenvectors
@@ -278,4 +285,14 @@ class PCA:
         - Use plt.annotate to label each line by the variable that it corresponds to.
         - Reminder to create useful x and y axis labels.
         """
-        pass
+        e0 = self.e_vecs[:, 0]  # top PC eigenvector
+        e1 = self.e_vecs[:, 1]  # 2nd PC eigenvector
+
+        for i, var in enumerate(self.vars):
+            plt.plot([0, e0[i]], [0, e1[i]], marker='o')
+            plt.annotate(var, (e0[i], e1[i]), fontsize=12)
+
+        plt.xlabel('PC1')
+        plt.ylabel('PC2')
+        plt.axhline(0, color='gray', linewidth=0.5)
+        plt.axvline(0, color='gray', linewidth=0.5)
