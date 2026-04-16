@@ -52,7 +52,13 @@ def get_top_rated_movies(A, movie_map, user_id, num_top_rated):
     list. len=num_top_rated. String names of user `user_id`'s top rated movies.
         Format: [User's most highly rated movie, User's 2nd most highly rated movie, ...]
     """
-    pass
+    user_ratings = A[user_id]
+    rated_indices = np.where(user_ratings != 0)[0]
+    top_indices = rated_indices[np.argsort(user_ratings[rated_indices])[::-1]][
+        :num_top_rated
+    ]
+
+    return [movie_map[i] for i in top_indices]
 
 
 def get_top_recommendations(A, rec_model, movie_map, user_id, num_top_recommendations):
@@ -74,7 +80,20 @@ def get_top_recommendations(A, rec_model, movie_map, user_id, num_top_recommenda
     ndarray. shape=(num_top_recommendations,). Floats representing the predicted numerical ratings of the top
         recommended movies.
     """
-    pass
+
+    user_ratings = A[user_id]
+    unrated_indices = np.where(user_ratings == 0)[0]
+
+    user_ids = np.full(len(unrated_indices), user_id)
+    pred_ratings = rec_model.predict_user_item_ratings(user_ids, unrated_indices)
+
+    top_k_pos = np.argsort(pred_ratings)[::-1][:num_top_recommendations]
+
+    top_movie_indices = unrated_indices[top_k_pos]
+    top_titles = [movie_map[i] for i in top_movie_indices]
+    top_pred_ratings = pred_ratings[top_k_pos]
+
+    return top_titles, top_pred_ratings
 
 
 def plot_recommendations(user_id, top_movie_titles, top_movie_ratings, figsize=(5, 7)):

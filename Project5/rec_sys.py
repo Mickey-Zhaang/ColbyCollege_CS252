@@ -191,7 +191,7 @@ class Mean(Recommender):
         NOTE: Make a copy of A before making any modifications. We are defining `A_fit`, but do not want to modify the
         `A` passed in.
         """
-        pass
+        self.A_fit = self.replace_missing_with_mean(A.copy())
 
     def predict(self):
         """Returns the predicted user-item matrix.
@@ -200,7 +200,7 @@ class Mean(Recommender):
         -----------
         ndarray. shape=(N, M). The user-item matrix of predicted ratings according to the mean user rating model.
         """
-        pass
+        return self.A_fit
 
 
 class FunkSVD(Recommender):
@@ -218,7 +218,9 @@ class FunkSVD(Recommender):
         - Define instance variables here the user-factor and factor-item matrices that will be computed by Funk SVD.
         Set them to `None` here.
         """
-        pass
+        super().__init__(num_bvs)
+        self.U = None
+        self.I = None
 
     def get_user_factor_matrix(self):
         """Returns the user-factor matrix.
@@ -227,7 +229,7 @@ class FunkSVD(Recommender):
         -----------
         ndarray. shape=(N, K). The user-factor matrix with `K` factors (i.e. basis vectors).
         """
-        pass
+        return self.U
 
     def get_factor_item_matrix(self):
         """Returns the factor-item matrix.
@@ -236,7 +238,18 @@ class FunkSVD(Recommender):
         -----------
         ndarray. shape=(K, M). The factor-item matrix with `K` factors (i.e. basis vectors).
         """
-        pass
+        return self.I
+
+    def rust_fit(self, A, step=0.009, n_iter=100, reg=0.1):
+        N, M = A.shape
+        K = self.num_bvs
+
+        self.U = np.random.uniform(0, 1, (N, K))
+        self.I = np.random.uniform(0, 1, (K, M))
+
+        import funk_svd  # type: ignore
+
+        funk_svd.fit(A, self.U, self.I, step, n_iter, reg)
 
     def fit(self, A, step=0.009, n_iter=100, reg=0.1):
         """Decomposes the user-item matrix `A` into a user-factor matrix (`U`) and a factor-item matrix (`I`) using
@@ -260,7 +273,26 @@ class FunkSVD(Recommender):
 
         NOTE: It is totally fine to use loops here :)
         """
-        pass
+        N, M = A.shape
+        K = self.num_bvs
+
+        self.U = np.random.uniform(0, 1, (N, K))
+        self.I = np.random.uniform(0, 1, (K, M))
+
+        rows, cols = np.where(A != 0)
+
+        for _ in range(n_iter):
+            for i, j in zip(rows, cols):
+                e = A[i, j] - self.U[i] @ self.I[:, j]
+
+                u_row = self.U[i].copy()
+                i_col = self.I[:, j].copy()
+
+                dU = -(e * i_col - reg * u_row)
+                dI = -(e * u_row - reg * i_col)
+
+                self.U[i] -= step * dU
+                self.I[:, j] -= step * dI
 
     def predict(self):
         """Computes the Funk SVD approximated user-item matrix
@@ -269,4 +301,4 @@ class FunkSVD(Recommender):
         -----------
         ndarray. shape=(N, M). The user-item matrix of predicted ratings.
         """
-        pass
+        return self.U @ self.I
